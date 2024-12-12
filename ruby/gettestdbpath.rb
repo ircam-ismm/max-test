@@ -4,7 +4,7 @@
 
 puts "Max Automated Test Runner"
 
-olddir = Dir.getwd
+olddir = Dir.getwd # path where script is run, for us: mubu-and-co/maxmubu/patches/maxtest
 estring = ""
 testpass = ""
 
@@ -30,7 +30,7 @@ require "open3"
 ###################################################################
 
 if (ARGV.length < 1 || ARGV.length > 2)
-  puts "usage: ruby test.rb <path-to-max> <no-exit>"
+  puts "usage: ruby gettestdbpath.rb <path-to-max>"
   puts "examples:"
   puts '  ruby test.rb "/Applications"'
   puts '  ruby test.rb "/Applications/Max.app"  --- you can give the path to the max application directly'
@@ -45,7 +45,8 @@ end
 @noexit = false
 @noexit = true if ARGV.length > 1
 
-
+# only print test db name
+@gettestdb = true
 
 curdir = Dir.pwd
 Dir.chdir @maxfolder
@@ -96,13 +97,13 @@ def establishCommunication
   Thread.new do
     @oscReceiver.serve
   end
-  sleep 5
+  sleep 1 # 5
 
   ping = OSC::Message.new('/ping');
   while @pingReturned == 0
     puts "    Sending ping to Max."
     @oscSender.send(ping, 0, @host, @sendPort)
-    sleep 2
+    sleep 1 #2
   end
 end
 
@@ -117,13 +118,13 @@ def waitOnDatabase
   Thread.new do
     @oscReceiver.serve
   end
-  sleep 10
+  sleep 1 #10
 
   ping = OSC::Message.new('/db/ready?');
   while @dbReady == 0
     puts "    Sending query to Max."
     @oscSender.send(ping, 0, @host, @sendPort)
-    sleep 10
+    sleep 1 #10
   end
 end
 
@@ -164,9 +165,13 @@ end
 
 def launchMax
   if RUBY_PLATFORM.match(/darwin/)
-    archcmd = ""
-    archcmd << "arch -arch x86_64" if @arch == 'x86_64'
-    archcmd << "arch -arch arm64" if @arch == 'arm64'
+    #archcmd = ""
+    #archcmd << "arch -arch x86_64" if @arch == 'x86_64'
+    #archcmd << "arch -arch arm64" if @arch == 'arm64'
+
+    # start or reuse existing max
+    archcmd = "open -F --wait-apps -a"
+    
     if @maxfolder.match(/\.app\/*$/) # check if app name given directly
       IO.popen("#{archcmd} \"#{@maxfolder}/Contents/MacOS/Max\"")
     else # nope, just a folder name, so assume Max.app
@@ -214,6 +219,11 @@ begin
 rescue Timeout::Error
 	estring << "\n\n  Max Database harvesting did not complete."
 	testpass = "fail"
+end
+
+if @gettestdb ###### we only want tests
+  puts "testdbpath: #{@testdbPath}"
+  exit 0
 end
 
 begin
